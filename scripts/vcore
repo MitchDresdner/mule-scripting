@@ -21,7 +21,7 @@ for ENV in "${ENVIRONMENTS[@]}"; do
     --environment "$ENV" \
     --organization "$ORG_NAME" \
     --output json 2>/dev/null | \
-    jq '[.[] | select(.status == "STARTED") | .workers[0].type.weight] | add')
+    jq '[.[] | select(.status == "STARTED") | (.workers.amount * .workers.type.weight)] | add')
 
   # Default to 0 if null
   RAW_SUM=${RAW_SUM:-0}
