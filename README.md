@@ -12,4 +12,5 @@ The `scripts/vcore` script is used to sum the vCore for each app in use in an En
 
 
 =============================
+
 🧮 Total vCore across all environments: 42.0
