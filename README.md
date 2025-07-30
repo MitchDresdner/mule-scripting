@@ -12,7 +12,7 @@ The `scripts/vcore` script is used to sum the vCore for each app in use in an En
 
   If bc isn't installed **Google** `bc linux install`
   
-### example
+### *sample output*
 🔎 Environment: QA
   Total vCore used in QA: 0
 
