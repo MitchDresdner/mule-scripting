@@ -36,7 +36,7 @@ for ENV in "${ENVIRONMENTS[@]}"; do
     --output json 2>/dev/null | \
     jq --argjson threshold "$CPU_THRESHOLD" -r '
       [.[] | select(.status == "STARTED") | 
-       {name: .name, vcore: (.workers.amount * .workers.type.weight)}] 
+       {name: .domain, vcore: (.workers.amount * .workers.type.weight)}] 
       | map(select(.vcore >= $threshold)) 
       | .[] | "  \(.name): \(.vcore) vCores"
     '
