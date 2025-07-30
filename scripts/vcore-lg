@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Default vCore threshold
+CPU_THRESHOLD=0.3
+
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -c|--cpu)
+      CPU_THRESHOLD="$2"
+      shift 2
+      ;;
+    *)
+      echo "Usage: $0 [-c | --cpu <vCore threshold>]"
+      exit 1
+      ;;
+  esac
+done
+
+# Define environments
+ENVIRONMENTS=("Dev" "Test" "QA")
+
+# Optional: set your organization name if needed
+ORG_NAME="Your Org Name"
+
+echo "🔍 Listing CloudHub apps using ≥ $CPU_THRESHOLD vCores"
+echo "======================================================="
+
+for ENV in "${ENVIRONMENTS[@]}"; do
+  echo ""
+  echo "🌐 Environment: $ENV"
+
+  # add after --env...: --organization "$ORG_NAME" \
+  anypoint-cli-v4 runtime-mgr cloudhub-application list \
+    --environment "$ENV" \
+    --output json 2>/dev/null | \
+    jq --argjson threshold "$CPU_THRESHOLD" -r '
+      [.[] | select(.status == "STARTED") | 
+       {name: .name, vcore: (.workers.amount * .workers.type.weight)}] 
+      | map(select(.vcore >= $threshold)) 
+      | .[] | "  \(.name): \(.vcore) vCores"
+    '
+done
+
