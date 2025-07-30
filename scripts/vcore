@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# List of environments to check
+ENVIRONMENTS=("Dev" "Test" "QA")
+
+# Initialize grand total
+TOTAL_VCORE=0
+
+# Optional: set your organization name if needed
+ORG_NAME="Your Org Name"
+
+echo "📊 MuleSoft vCore Usage Report"
+echo "============================="
+
+for ENV in "${ENVIRONMENTS[@]}"; do
+  echo ""
+  echo "🔎 Environment: $ENV"
+
+  # Get list of applications and extract vCore values using jq
+  VCORE_SUM=$(anypoint-cli-v4 cloudhub application list \
+    --environment "$ENV" \
+    --organization "$ORG_NAME" \
+    --output json 2>/dev/null | \
+    jq '[.[] | .workers[0].amount] | add')
+
+  # Handle environments with no apps gracefully
+  VCORE_SUM=${VCORE_SUM:-0}
+
+  echo "  Total vCore used in $ENV: $VCORE_SUM"
+
+  # Add to grand total
+  TOTAL_VCORE=$(echo "$TOTAL_VCORE + $VCORE_SUM" | bc)
+done
+
+echo ""
+echo "============================="
+echo "🧮 Total vCore across all environments: $TOTAL_VCORE"
+
