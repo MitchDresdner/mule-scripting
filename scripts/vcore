@@ -16,15 +16,18 @@ for ENV in "${ENVIRONMENTS[@]}"; do
   echo ""
   echo "🔎 Environment: $ENV"
 
-  # Get list of applications and extract vCore values using jq
-  VCORE_SUM=$(anypoint-cli-v4 cloudhub application list \
+# Get list of STARTED applications and sum their vCore weight
+  RAW_SUM=$(anypoint-cli-v4 runtime-mgr cloudhub-application list \
     --environment "$ENV" \
     --organization "$ORG_NAME" \
     --output json 2>/dev/null | \
-    jq '[.[] | .workers[0].amount] | add')
+    jq '[.[] | select(.status == "STARTED") | .workers[0].type.weight] | add')
 
-  # Handle environments with no apps gracefully
-  VCORE_SUM=${VCORE_SUM:-0}
+  # Default to 0 if null
+  RAW_SUM=${RAW_SUM:-0}
+
+  # Round to 1 decimal place using bc
+  VCORE_SUM=$(echo "scale=1; $RAW_SUM / 1" | bc)
 
   echo "  Total vCore used in $ENV: $VCORE_SUM"
 
