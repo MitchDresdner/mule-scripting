@@ -1,0 +1,30 @@
+GovCloud Root Org
+│
+├── Platform-Security (Audit Log Viewer, Access Mgmt Admin - minimal)
+│
+├── ProjectA (Business Group)
+│   ├── Dev Environment
+│   │    ├── ProjectA-Dev-Admins      [Deploy + Full Dev control]
+│   │    ├── ProjectA-Dev-Developers  [Build + Deploy + Logs]
+│   │    └── ProjectA-Dev-Viewers     [Read-only]
+│   │
+│   ├── Test Environment
+│   │    ├── ProjectA-Test-Admins     [Deploy + Test control]
+│   │    └── ProjectA-Test-Testers    [Logs + Metrics only]
+│   │
+│   └── Production Environment
+│        └── ProjectA-Prod-LogReview  [Logs + Metrics only, no deploy]
+│
+└── ProjectB (Business Group)
+    ├── Dev Environment
+    │    ├── ProjectB-Dev-Admins
+    │    ├── ProjectB-Dev-Developers
+    │    └── ProjectB-Dev-Viewers
+    │
+    ├── Test Environment
+    │    ├── ProjectB-Test-Admins
+    │    └── ProjectB-Test-Testers
+    │
+    └── Production Environment
+         └── ProjectB-Prod-LogReview
+
