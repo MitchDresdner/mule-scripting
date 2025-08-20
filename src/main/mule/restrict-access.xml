@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:jwt="http://www.mulesoft.org/schema/mule/jwt"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+        http://www.mulesoft.org/schema/mule/jwt http://www.mulesoft.org/schema/mule/jwt/current/mule-jwt.xsd">
+
+    <!-- DB Config -->
+    <db:config name="dbConfig">
+        <db:generic-connection url="jdbc:mysql://localhost:3306/mydb"
+                               driverClassName="com.mysql.cj.jdbc.Driver"
+                               username="root"
+                               password="secret"/>
+    </db:config>
+
+    <!-- HTTP Listener -->
+    <http:listener-config name="httpListener">
+        <http:listener-connection host="0.0.0.0" port="8081"/>
+    </http:listener-config>
+
+    <flow name="restricted-api">
+        <http:listener path="/restricted" config-ref="httpListener"/>
+
+        <!-- Extract Bearer Token -->
+        <set-variable variableName="token"
+                      value="#[attributes.headers['authorization'] default '']"/>
+        <set-variable variableName="jwt"
+                      value="#[(vars.token replace 'Bearer ' with '')]"/>
+
+        <!-- Decode JWT (assumes JWT, not opaque token) -->
+        <jwt:decode doc:name="Decode Token"
+                    value="#[vars.jwt]"
+                    outputType="json"
+                    target="claims"/>
+
+        <!-- Extract client_id from claims -->
+        <set-variable variableName="clientId"
+                      value="#[vars.claims.client_id]"/>
+
+        <!-- DB Check 1: Client Active -->
+        <db:select config-ref="dbConfig">
+            <db:sql>SELECT active FROM clients WHERE client_id = :clientId</db:sql>
+            <db:input-parameters><![CDATA[#[{ clientId: vars.clientId }]]]></db:input-parameters>
+        </db:select>
+        <choice>
+            <when expression="#[isEmpty(payload) or payload[0].active != true]">
+                <raise-error type="CLIENT:UNAUTHORIZED" description="Client not active"/>
+            </when>
+        </choice>
+
+        <!-- DB Check 2: Quota -->
+        <db:select config-ref="dbConfig">
+            <db:sql>SELECT used, quota FROM client_usage WHERE client_id = :clientId</db:sql>
+            <db:input-parameters><![CDATA[#[{ clientId: vars.clientId }]]]></db:input-parameters>
+        </db:select>
+        <choice>
+            <when expression="#[payload[0].used >= payload[0].quota]">
+                <raise-error type="CLIENT:FORBIDDEN" description="Quota exceeded"/>
+            </when>
+        </choice>
+
+        <!-- DB Check 3: Resource Access -->
+        <db:select config-ref="dbConfig">
+            <db:sql>
+              SELECT allowed FROM client_resources
+              WHERE client_id = :clientId AND resource = :resource
+            </db:sql>
+            <db:input-parameters><![CDATA[#[{ clientId: vars.clientId, resource: 'restricted' }]]]></db:input-parameters>
+        </db:select>
+        <choice>
+            <when expression="#[isEmpty(payload) or payload[0].allowed != true]">
+                <raise-error type="CLIENT:FORBIDDEN" description="Resource not allowed"/>
+            </when>
+        </choice>
+
+        <!-- Success -->
+        <set-payload value='{"message": "Access Granted ✅"}' mimeType="application/json"/>
+    </flow>
+
+    <!-- Global Error Handling -->
+    <error-handler>
+        <on-error-propagate type="CLIENT:UNAUTHORIZED">
+            <set-variable variableName="err" value="#[error.description default 'Unauthorized']"/>
+            <set-payload value='{"error": "unauthorized", "message": "#[vars.err]"}' mimeType="application/json"/>
+            <set-property propertyName="httpStatus" value="401"/>
+        </on-error-propagate>
+
+        <on-error-propagate type="CLIENT:FORBIDDEN">
+            <set-variable variableName="err" value="#[error.description default 'Forbidden']"/>
+            <set-payload value='{"error": "forbidden", "message": "#[vars.err]"}' mimeType="application/json"/>
+            <set-property propertyName="httpStatus" value="403"/>
+        </on-error-propagate>
+
+        <on-error-propagate>
+            <set-variable variableName="err" value="#[error.description default 'Server error']"/>
+            <set-payload value='{"error": "server_error", "message": "#[vars.err]"}' mimeType="application/json"/>
+            <set-property propertyName="httpStatus" value="500"/>
+        </on-error-propagate>
+    </error-handler>
+
+</mule>
+
