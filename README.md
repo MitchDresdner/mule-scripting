@@ -36,3 +36,6 @@ To identify large vCore consumers, run `scripts/vcore-lg`. The script iterates o
   hello-world-qa: 3 vCores
   party-time-qa: 42 vCores
 
+## References
+
+* [API Led design](https://chatgpt.com/share/69de7614-f920-83ea-97db-5d3df1e020e6)
